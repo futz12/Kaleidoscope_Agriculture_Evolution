@@ -36,13 +36,11 @@ public abstract class RopeRenderer {
     public void registerRope(RopeConnectionData connection) {
         if (!connections.containsKey(connection.connectionId)) {
             connections.put(connection.connectionId, connection);
-            System.out.println("[RopeRenderer] Registered rope: " + connection.connectionId);
         }
     }
 
     public void unregisterRope(String connectionId) {
         connections.remove(connectionId);
-        System.out.println("[RopeRenderer] Unregistered rope: " + connectionId);
     }
 
     public void tick(float partialTick) {
@@ -67,38 +65,32 @@ public abstract class RopeRenderer {
                 currentQuality.width, currentQuality.sagFactor, currentQuality.segments
         );
 
-        if (useCache && model != null && !model.isEmpty()) {
+        if (useCache && model != null && !model.isEmpty() && !model.containsNaN()) {
             modelCache.put(key, model);
+        } else if (model != null && model.containsNaN()) {
+            clearCache();
         }
 
         return model;
     }
 
     public void render(PoseStack poseStack, MultiBufferSource buffer, float partialTick, Camera camera) {
-        System.out.println("[RopeRenderer.render] ENTER, connections = " + connections.size());
-
         tick(partialTick);
 
-        System.out.println("[RopeRenderer.render] After tick, connections = " + connections.size());
-
         if (connections.isEmpty()) {
-            System.out.println("[RopeRenderer.render] EMPTY, returning");
             return;
         }
 
         for (RopeConnectionData conn : connections.values()) {
             if (conn.startPoint == null || conn.endPoint == null) {
-                System.out.println("[RopeRenderer] Skipping " + conn.connectionId + ": null endpoint");
                 continue;
             }
             if (!conn.isValid()) {
-                System.out.println("[RopeRenderer] Skipping " + conn.connectionId + ": invalid");
                 continue;
             }
 
             RopeModelData model = getOrCreateModel(conn);
             if (model == null || model.isEmpty()) {
-                System.out.println("[RopeRenderer] Skipping " + conn.connectionId + ": empty model");
                 continue;
             }
 
@@ -107,9 +99,6 @@ public abstract class RopeRenderer {
     }
 
     protected void renderModel(PoseStack poseStack, MultiBufferSource buffer, RopeModelData model, ResourceLocation texture) {
-        float[] verts = model.getVertices();
-        System.out.println("[RopeRenderer.renderModel] vcount=" + model.getVertexCount()
-                + " first=(" + String.format("%.1f", verts[0]) + "," + String.format("%.1f", verts[1]) + "," + String.format("%.1f", verts[2]) + ")");
         VertexConsumer consumer = buffer.getBuffer(RenderType.entityTranslucent(texture));
         var pose = poseStack.last().pose();
 

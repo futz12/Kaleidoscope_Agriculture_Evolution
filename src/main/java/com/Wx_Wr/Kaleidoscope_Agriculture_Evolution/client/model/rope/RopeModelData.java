@@ -31,4 +31,11 @@ public class RopeModelData {
     public boolean isEmpty() {
         return vertexCount == 0;
     }
+
+    public boolean containsNaN() {
+        for (float v : vertices) {
+            if (Float.isNaN(v)) return true;
+        }
+        return false;
+    }
 }

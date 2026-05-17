@@ -14,7 +14,7 @@ public class PlowModel extends GeoModel<PlowEntity> {
 
     @Override
     public ResourceLocation getTextureResource(PlowEntity entity) {
-        return new ResourceLocation(Kaleidoscope_Agriculture_Evolution.MODID, "textures/entity/plowox.png");
+        return new ResourceLocation(Kaleidoscope_Agriculture_Evolution.MODID, "textures/entity/plow.png");
     }
 
     @Override

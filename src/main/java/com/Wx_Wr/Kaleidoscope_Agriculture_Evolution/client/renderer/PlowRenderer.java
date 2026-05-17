@@ -21,9 +21,11 @@ public class PlowRenderer extends GeoEntityRenderer<PlowEntity> {
     @Override
     public void render(PlowEntity entity, float entityYaw, float partialTicks,
                        PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-        poseStack.pushPose();
-        poseStack.mulPose(Axis.YP.rotationDegrees(entity.getYRot()));
         super.render(entity, 0, partialTicks, poseStack, buffer, packedLight);
-        poseStack.popPose();
+    }
+
+    @Override
+    protected void applyRotations(PlowEntity animatable, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTicks) {
+        poseStack.mulPose(Axis.YP.rotationDegrees((180f - animatable.getYRot())));
     }
 }

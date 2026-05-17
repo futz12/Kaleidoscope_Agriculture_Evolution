@@ -97,7 +97,7 @@ public class WhipEventHandler {
             }
         }
 
-        // 原有逻辑：指派犁牛去角落
+        // 指派附近跟随中的牛去角落
         for (Entity e : player.level().getEntitiesOfClass(Entity.class, player.getBoundingBox().inflate(20))) {
             if (e instanceof PlowOxEntity ox && ox.getOxState() == PlowOxEntity.OxState.FOLLOW
                     && player.getUUID().equals(ox.getFollowOwnerUUID())) {

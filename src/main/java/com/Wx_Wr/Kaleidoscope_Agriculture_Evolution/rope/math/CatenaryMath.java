@@ -18,7 +18,7 @@ public final class CatenaryMath {
         double horizontalDist = Math.sqrt(dx * dx + dz * dz);
         double totalDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-        if (totalDist < 0.001) {
+        if (totalDist < 0.001 || Double.isNaN(totalDist)) {
             for (int i = 0; i <= segments; i++) {
                 double t = (double) i / segments;
                 points[i] = start.lerp(end, t);
@@ -27,11 +27,17 @@ public final class CatenaryMath {
         }
 
         double a = totalDist / Math.max(0.1, sagFactor * 8.0);
+        if (Double.isNaN(a) || Double.isInfinite(a)) {
+            a = totalDist / 0.5;
+        }
         double b = computeB(totalDist, dy, a);
+        if (Double.isNaN(b) || Double.isInfinite(b)) {
+            b = totalDist / 2.0;
+        }
         double c = -a * Math.cosh(b / a);
-
-        System.out.println("[CatenaryMath] a=" + String.format("%.4f", a) + " b=" + String.format("%.4f", b) + " c=" + String.format("%.4f", c) + " totalDist=" + String.format("%.4f", totalDist) + " sagFactor=" + sagFactor);
-        System.out.println("[CatenaryMath] cosh(b/a)=" + String.format("%.4f", Math.cosh(b/a)) + " isValid=" + !Double.isNaN(a) + ":" + !Double.isNaN(b) + ":" + !Double.isNaN(c));
+        if (Double.isNaN(c) || Double.isInfinite(c)) {
+            c = -a;
+        }
 
         double dirX = horizontalDist > 0.001 ? dx / horizontalDist : 0;
         double dirZ = horizontalDist > 0.001 ? dz / horizontalDist : 0;

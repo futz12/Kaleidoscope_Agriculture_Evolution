@@ -4,6 +4,7 @@ import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.client.renderer.rope.RopeRen
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.client.renderer.*;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.entity.PlowOxEntity;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.item.WhipItem;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Camera;
@@ -42,90 +43,23 @@ public class ClientEventHandler {
         var poseStack = event.getPoseStack();
         float partialTick = event.getPartialTick();
 
-        System.out.println("[ClientEventHandler] onRenderLevel called, partialTick = " + partialTick);
-
         // 更新绳子渲染器
         RopeClientEventHandler.tick(partialTick);
 
         // 渲染绳子
         RopeRenderer ropeRenderer = RopeClientEventHandler.getRopeRenderer();
         if (ropeRenderer != null) {
-            System.out.println("[ClientEventHandler] RopeRenderer exists, connections = " + ropeRenderer.connections.size());
-
             poseStack.pushPose();
             Vec3 cameraPos = camera.getPosition();
-            System.out.println("[ClientEventHandler] Camera position = " + cameraPos);
             poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
             ropeRenderer.render(poseStack, bufferSource, partialTick, camera);
             poseStack.popPose();
-        } else {
-            System.out.println("[ClientEventHandler] RopeRenderer is null!");
         }
-
-        // 调试球体（显示端点位置）
-        renderDebugSpheres(ropeRenderer, poseStack, bufferSource);
 
         renderWhipSelections(player, poseStack, bufferSource, camera);
         renderOxRelated(player, mc, poseStack, bufferSource, camera, partialTick);
 
         bufferSource.endBatch();
-    }
-
-    /**
-     * 调试用：渲染端点球体
-     */
-    private static void renderDebugSpheres(RopeRenderer ropeRenderer, PoseStack poseStack, MultiBufferSource buffer) {
-        if (ropeRenderer == null || ropeRenderer.connections == null) return;
-
-        System.out.println("[ClientEventHandler] renderDebugSpheres, connections = " + ropeRenderer.connections.size());
-
-        for (var conn : ropeRenderer.connections.values()) {
-            if (conn.startPoint != null && conn.endPoint != null) {
-                System.out.println("[ClientEventHandler] Debug sphere: start=" + conn.startPoint + ", end=" + conn.endPoint);
-                // 起点 - 红色球体
-                renderSolidSphere(poseStack, buffer, conn.startPoint, 0.3f, 1.0f, 0.0f, 0.0f);
-                // 终点 - 绿色球体
-                renderSolidSphere(poseStack, buffer, conn.endPoint, 0.3f, 0.0f, 1.0f, 0.0f);
-                // 中点 - 蓝色球体
-                Vec3 mid = conn.startPoint.lerp(conn.endPoint, 0.5);
-                renderSolidSphere(poseStack, buffer, mid, 0.3f, 0.0f, 0.0f, 1.0f);
-            }
-        }
-    }
-
-    private static void renderSolidSphere(PoseStack poseStack, MultiBufferSource buffer, Vec3 pos, float size, float r, float g, float b) {
-        VertexConsumer consumer = buffer.getBuffer(RenderType.entitySolid(new net.minecraft.resources.ResourceLocation("minecraft", "textures/block/red_concrete.png")));
-        var pose = poseStack.last().pose();
-
-        int light = LightTexture.pack(15, 15);
-
-        float x = (float) pos.x;
-        float y = (float) pos.y;
-        float z = (float) pos.z;
-        float s = size;
-
-        float[][] verts = {
-                {x - s, y - s, z - s}, {x + s, y - s, z - s},
-                {x + s, y - s, z + s}, {x - s, y - s, z + s},
-                {x - s, y + s, z - s}, {x + s, y + s, z - s},
-                {x + s, y + s, z + s}, {x - s, y + s, z + s}
-        };
-
-        int[][] faces = {
-                {0,1,2,3}, {4,7,6,5}, {0,4,5,1},
-                {2,6,7,3}, {0,3,7,4}, {1,5,6,2}
-        };
-
-        for (int[] face : faces) {
-            consumer.vertex(pose, verts[face[0]][0], verts[face[0]][1], verts[face[0]][2])
-                    .color(r, g, b, 1.0f).uv(0, 0).overlayCoords(0).uv2(light).normal(0, 1, 0).endVertex();
-            consumer.vertex(pose, verts[face[1]][0], verts[face[1]][1], verts[face[1]][2])
-                    .color(r, g, b, 1.0f).uv(0, 0).overlayCoords(0).uv2(light).normal(0, 1, 0).endVertex();
-            consumer.vertex(pose, verts[face[2]][0], verts[face[2]][1], verts[face[2]][2])
-                    .color(r, g, b, 1.0f).uv(0, 0).overlayCoords(0).uv2(light).normal(0, 1, 0).endVertex();
-            consumer.vertex(pose, verts[face[3]][0], verts[face[3]][1], verts[face[3]][2])
-                    .color(r, g, b, 1.0f).uv(0, 0).overlayCoords(0).uv2(light).normal(0, 1, 0).endVertex();
-        }
     }
 
     private static void renderWhipSelections(net.minecraft.world.entity.player.Player player,

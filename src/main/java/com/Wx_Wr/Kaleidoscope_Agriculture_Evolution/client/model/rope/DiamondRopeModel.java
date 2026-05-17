@@ -66,6 +66,11 @@ public class DiamondRopeModel {
             Vec3 p0 = curvePoints[seg];
             Vec3 p1 = curvePoints[seg + 1];
 
+            if (Double.isNaN(p0.x) || Double.isNaN(p0.y) || Double.isNaN(p0.z)
+                    || Double.isNaN(p1.x) || Double.isNaN(p1.y) || Double.isNaN(p1.z)) {
+                continue;
+            }
+
             // 计算线段方向和旋转矩阵
             Vector3f direction = new Vector3f(
                     (float)(p1.x - p0.x),
@@ -73,9 +78,10 @@ public class DiamondRopeModel {
                     (float)(p1.z - p0.z)
             );
             float segmentLength = direction.length();
-            if (segmentLength < 0.0001f) continue;
+            if (segmentLength < 0.0001f || Float.isNaN(segmentLength)) continue;
 
             direction.normalize();
+            if (Float.isNaN(direction.x)) continue;
 
             // 构建旋转矩阵：将标准截面旋转到线段方向
             Vector3f up = new Vector3f(0, 1, 0);

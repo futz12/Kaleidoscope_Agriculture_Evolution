@@ -4,6 +4,7 @@ import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.Kaleidoscope_Agriculture_Evo
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.block.ModBlocks;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.entity.ai.PlowAI;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.entity.rope.RopeEndpointCalculator;
+import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.item.ModItems;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.rope.api.RopeAttachable;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.rope.core.RopeManager;
 import net.minecraft.core.BlockPos;
@@ -15,9 +16,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.goal.TemptGoal;
 import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.core.animatable.GeoAnimatable;
@@ -76,7 +79,7 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
 
     @Override
     protected void registerGoals() {
-        // 移除原版 AI，由自定义状态机控制
+        this.goalSelector.addGoal(3, new FollowOwnerGoal(this, 1.0, Ingredient.of(ModItems.WHIP.get()), false));
     }
 
     @Override
@@ -123,10 +126,10 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
         this.entityData.set(PLOW_PATH, data);
     }
 
+    public PlowAI.Direction getSelectedPlowDir() { return selectedPlowDir; }
+
     public UUID getFollowOwnerUUID() { return followOwnerUUID; }
     public void setFollowOwnerUUID(UUID uuid) { this.followOwnerUUID = uuid; }
-
-    public PlowAI.Direction getSelectedPlowDir() { return selectedPlowDir; }
 
     public UUID getPlowEntityUUID() {
         return this.entityData.get(PLOW_ENTITY_UUID).orElse(null);
@@ -343,11 +346,9 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
             setOxState(OxState.IDLE);
             return;
         }
-        double dist = this.distanceToSqr(owner);
-        if (dist > 4.0) {
-            this.getMoveControl().setWantedPosition(owner.getX(), owner.getY(), owner.getZ(), 1.0);
-        } else {
-            this.getMoveControl().setWantedPosition(owner.getX(), owner.getY(), owner.getZ(), 0);
+        // TemptGoal (FollowOwnerGoal) 负责实际跟随移动，这里只做状态校验
+        if (this.distanceToSqr(owner) > 256.0) { // 超过 16 格放弃
+            setOxState(OxState.IDLE);
         }
     }
 
@@ -457,7 +458,6 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
         if (followOwnerUUID != null) tag.putUUID("FollowOwner", followOwnerUUID);
         if (getTargetCorner() != null) tag.putLong("TargetCorner", getTargetCorner().asLong());
         if (getOtherCorner() != null) tag.putLong("OtherCorner", getOtherCorner().asLong());
-        tag.putBoolean("RopesCreated", ropesCreated);
     }
 
     @Override
@@ -467,7 +467,6 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
         if (tag.hasUUID("FollowOwner")) this.followOwnerUUID = tag.getUUID("FollowOwner");
         if (tag.contains("TargetCorner")) setTargetCorner(BlockPos.of(tag.getLong("TargetCorner")));
         if (tag.contains("OtherCorner")) setOtherCorner(BlockPos.of(tag.getLong("OtherCorner")));
-        ropesCreated = tag.getBoolean("RopesCreated");
     }
 
     // ==================== GeckoLib 动画 ====================
@@ -537,5 +536,30 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
         if (delta > 180) delta -= 360;
         if (delta < -180) delta += 360;
         return prevYaw + delta * partialTick;
+    }
+
+    // ==================== 内部类：条件跟随 AI ====================
+
+    /**
+     * 只在 FOLLOW 状态下激活的 TemptGoal
+     * 利用原版平滑的跟随移动 AI
+     */
+    private static class FollowOwnerGoal extends TemptGoal {
+        private final PlowOxEntity ox;
+
+        public FollowOwnerGoal(PlowOxEntity ox, double speed, Ingredient items, boolean canScare) {
+            super(ox, speed, items, canScare);
+            this.ox = ox;
+        }
+
+        @Override
+        public boolean canUse() {
+            return ox.getOxState() == OxState.FOLLOW && super.canUse();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return ox.getOxState() == OxState.FOLLOW && super.canContinueToUse();
+        }
     }
 }

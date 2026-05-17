@@ -8,6 +8,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -43,17 +44,34 @@ public class PlowEntity extends AbstractDraggableEntity implements RopeAttachabl
     @Override
     protected void onDraggerMove() {
         BlockPos below = this.blockPosition().below();
-        BlockState state = level().getBlockState(below);
+        BlockState stateBelow = level().getBlockState(below);
 
-        if (isTillable(state)) {
+        // 翻耕泥土
+        if (isTillable(stateBelow)) {
             level().setBlock(below, Blocks.FARMLAND.defaultBlockState().setValue(FarmBlock.MOISTURE, 0), 3);
-            spawnBlockParticles(below, state);
+            spawnBlockParticles(below, stateBelow);
             if (!this.level().isClientSide) {
                 this.level().playSound(null, below,
                         net.minecraft.sounds.SoundEvents.HOE_TILL,
                         net.minecraft.sounds.SoundSource.BLOCKS, 0.8F, 1.0F);
             }
         }
+
+        // 破坏路径上的花花草草
+        BlockPos at = this.blockPosition();
+        BlockState stateAt = level().getBlockState(at);
+        if (isBreakablePlant(stateAt)) {
+            level().destroyBlock(at, true);
+        }
+        if (isBreakablePlant(stateBelow)) {
+            level().destroyBlock(below, true);
+        }
+    }
+
+    private boolean isBreakablePlant(BlockState state) {
+        return state.is(BlockTags.REPLACEABLE)
+                || state.is(BlockTags.FLOWERS)
+                || state.is(BlockTags.SAPLINGS);
     }
 
     @Override
@@ -110,32 +128,6 @@ public class PlowEntity extends AbstractDraggableEntity implements RopeAttachabl
     @Override
     public void tick() {
         super.tick();
-
-        // 每 tick 更新朝向，面向牛
-        PlowOxEntity ox = getOx();
-        if (ox != null && !level().isClientSide) {
-            updateFacingTowardsOx(ox);
-        }
-    }
-
-    private void updateFacingTowardsOx(PlowOxEntity ox) {
-        double dx = ox.getX() - this.getX();
-        double dz = ox.getZ() - this.getZ();
-
-        if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
-            float targetYaw = (float) (Math.toDegrees(Math.atan2(dx, dz)) + 180f);
-            float currentYaw = this.getYRot();
-            float deltaYaw = targetYaw - currentYaw;
-
-            while (deltaYaw > 180) deltaYaw -= 360;
-            while (deltaYaw < -180) deltaYaw += 360;
-
-            float maxTurn = getTurnSpeed();
-            if (deltaYaw > maxTurn) deltaYaw = maxTurn;
-            if (deltaYaw < -maxTurn) deltaYaw = -maxTurn;
-
-            this.setYRot(currentYaw + deltaYaw);
-        }
     }
 
     // ==================== 数据持久化 ====================

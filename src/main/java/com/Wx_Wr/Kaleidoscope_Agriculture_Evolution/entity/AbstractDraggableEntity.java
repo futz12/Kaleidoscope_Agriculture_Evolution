@@ -246,9 +246,11 @@ public abstract class AbstractDraggableEntity extends Entity implements GeoAnima
             this.setDeltaMovement(this.getDeltaMovement().normalize().scale(maxSpeed));
         }
 
-        Vec3 movement = this.getDeltaMovement();
-        if (movement.horizontalDistance() > 0.01) {
-            float targetYaw = (float) (Math.toDegrees(Math.atan2(-movement.z, movement.x)) - 90.0);
+        // 朝向：背对牛的方向
+        double dx = ox.getX() - this.getX();
+        double dz = ox.getZ() - this.getZ();
+        if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
+            float targetYaw = (float) (Math.toDegrees(Math.atan2(dx, dz)) + 180f);
             float deltaYaw = Mth.wrapDegrees(targetYaw - this.getYRot());
             deltaYaw = Mth.clamp(deltaYaw, -getTurnSpeed(), getTurnSpeed());
             this.setYRot(this.getYRot() + deltaYaw);
@@ -337,7 +339,6 @@ public abstract class AbstractDraggableEntity extends Entity implements GeoAnima
         if (ox != null) tag.putUUID("OxUUID", ox.getUUID());
         tag.putFloat("Health", this.health);
         tag.putBoolean("IsWorking", this.isWorking);
-        tag.putBoolean("RopesCreated", this.ropesCreated);
     }
 
     @Override
@@ -347,7 +348,6 @@ public abstract class AbstractDraggableEntity extends Entity implements GeoAnima
         }
         if (tag.contains("Health")) this.health = tag.getFloat("Health");
         if (tag.contains("IsWorking")) this.isWorking = tag.getBoolean("IsWorking");
-        if (tag.contains("RopesCreated")) this.ropesCreated = tag.getBoolean("RopesCreated");
     }
 
     // ========== 交互与伤害 ==========
