@@ -1,0 +1,13 @@
+{
+  "item.kaleidoscope_agriculture_evolution.whip": "Whip",
+  "item.kaleidoscope_agriculture_evolution.plow": "Plow",
+  "block.kaleidoscope_agriculture_evolution.plow": "Plow",
+  "entity.kaleidoscope_agriculture_evolution.plow_ox": "Plow Ox",
+  "message.kaleidoscope_agriculture_evolution.edit_enter": "Edit mode entered. First corner set.",
+  "message.kaleidoscope_agriculture_evolution.edit_exit": "Edit mode exited. Range saved.",
+  "message.kaleidoscope_agriculture_evolution.edit_corner": "Second corner set.",
+  "message.kaleidoscope_agriculture_evolution.range_removed": "Range removed.",
+  "message.kaleidoscope_agriculture_evolution.not_in_range": "Not inside any range.",
+  "message.kaleidoscope_agriculture_evolution.plow_mode_on": "Plow mode: ON",
+  "message.kaleidoscope_agriculture_evolution.plow_mode_off": "Plow mode: OFF"
+}
