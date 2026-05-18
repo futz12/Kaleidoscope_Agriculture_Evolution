@@ -1,14 +1,13 @@
 package com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.entity;
 
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.block.ModBlocks;
-import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.entity.rope.RopeEndpointCalculator;
-import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.rope.api.RopeAttachable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -22,7 +21,7 @@ import software.bernie.geckolib.core.object.PlayState;
 import java.util.Optional;
 import java.util.UUID;
 
-public class PlowEntity extends AbstractDraggableEntity implements RopeAttachable {
+public class PlowEntity extends AbstractDraggableEntity {
 
     // 保存所属牛的 UUID
     private static final EntityDataAccessor<Optional<UUID>> OX_UUID =
@@ -165,40 +164,36 @@ public class PlowEntity extends AbstractDraggableEntity implements RopeAttachabl
         return PlayState.CONTINUE;
     }
 
-    // ==================== RopeAttachable 接口实现 ====================
+    // ==================== 绳子连接点 ====================
+
+    private static final float PLOW_LEFT_X = -0.5625f;  // -9/16
+    private static final float PLOW_RIGHT_X = 0.5625f;   // 9/16
+    private static final float PLOW_Y = 0.31875f;        // 5.1/16
+    private static final float PLOW_Z = -0.76875f;       // -12.3/16
 
     @Override
     public Vec3 getLeftRopeAttachPoint(float partialTick) {
-        return RopeEndpointCalculator.getPlowLeftPoint(this, partialTick);
+        return calculateAttachPoint(this, PLOW_LEFT_X, PLOW_Y, PLOW_Z, partialTick);
     }
 
     @Override
     public Vec3 getRightRopeAttachPoint(float partialTick) {
-        return RopeEndpointCalculator.getPlowRightPoint(this, partialTick);
+        return calculateAttachPoint(this, PLOW_RIGHT_X, PLOW_Y, PLOW_Z, partialTick);
     }
 
-    @Override
-    public UUID getRopeUUID() {
-        return this.getUUID();
-    }
+    private static Vec3 calculateAttachPoint(Entity entity, float localX, float localY, float localZ, float partialTick) {
+        double x = entity.xOld + (entity.getX() - entity.xOld) * partialTick;
+        double y = entity.yOld + (entity.getY() - entity.yOld) * partialTick;
+        double z = entity.zOld + (entity.getZ() - entity.zOld) * partialTick;
+        float yaw = entity.getViewYRot(partialTick);
+        float yawRad = (float) Math.toRadians(yaw);
 
-    @Override
-    public Level getRopeLevel() {
-        return this.level();
-    }
+        // 模型 root rotation = 180 度补偿
+        float rotatedX = -localX;
+        float rotatedZ = -localZ;
 
-    @Override
-    public boolean isRopeAttachableAlive() {
-        return this.isAlive();
-    }
-
-    @Override
-    public float getRopeYaw(float partialTick) {
-        float prevYaw = this.yRotO;
-        float currYaw = this.getYRot();
-        float delta = currYaw - prevYaw;
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
-        return prevYaw + delta * partialTick;
+        double worldX = x + (rotatedX * Math.cos(yawRad) - rotatedZ * Math.sin(yawRad));
+        double worldZ = z + (rotatedX * Math.sin(yawRad) + rotatedZ * Math.cos(yawRad));
+        return new Vec3(worldX, y + localY, worldZ);
     }
 }

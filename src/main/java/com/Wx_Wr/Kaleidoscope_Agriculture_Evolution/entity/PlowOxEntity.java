@@ -3,10 +3,7 @@ package com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.entity;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.Kaleidoscope_Agriculture_Evolution;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.block.ModBlocks;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.entity.ai.PlowAI;
-import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.entity.rope.RopeEndpointCalculator;
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.item.ModItems;
-import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.rope.api.RopeAttachable;
-import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.rope.core.RopeManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -34,7 +31,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
+public class PlowOxEntity extends Cow implements GeoAnimatable {
 
     private final AnimatableInstanceCache cache = new SingletonAnimatableInstanceCache(this);
     private final PlowAI plowAI = new PlowAI(this);
@@ -231,6 +228,8 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
         PlowEntity plow = ModEntities.PLOW_ENTITY.get().create(level());
         if (plow != null) {
             plow.setPos(this.getX(), this.getY(), this.getZ());
+            plow.setYRot(this.getYRot());
+            plow.setYHeadRot(this.getYRot());
             level().addFreshEntity(plow);
             setPlowEntityUUID(plow.getUUID());
             cachedPlow = plow;
@@ -243,8 +242,6 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
 
         PlowEntity plow = getPlowEntity();
         if (plow != null) {
-            // 销毁绳子
-            RopeManager.getInstance().destroyAllLinks(this);
             ropesCreated = false;
             plow.setOx(null);
             plow.discard();
@@ -256,8 +253,6 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
 
     private void ensureRopesExist(PlowEntity plow) {
         if (!level().isClientSide && !ropesCreated && plow != null) {
-            RopeManager.getInstance().createLink(this, plow, true);
-            RopeManager.getInstance().createLink(this, plow, false);
             ropesCreated = true;
         }
     }
@@ -501,41 +496,35 @@ public class PlowOxEntity extends Cow implements GeoAnimatable, RopeAttachable {
         return this.tickCount;
     }
 
-    // ==================== RopeAttachable 接口实现 ====================
+    // ==================== 绳子连接点 ====================
 
-    @Override
+    private static final float OX_LEFT_X = -0.5625f;  // -9/16
+    private static final float OX_RIGHT_X = 0.5625f;   // 9/16
+    private static final float OX_Y = 0.90625f;        // 14.5/16
+    private static final float OX_Z = -0.234375f;      // -3.75/16
+
     public Vec3 getLeftRopeAttachPoint(float partialTick) {
-        return RopeEndpointCalculator.getOxLeftPoint(this, partialTick);
+        return calculateAttachPoint(this, OX_LEFT_X, OX_Y, OX_Z, partialTick);
     }
 
-    @Override
     public Vec3 getRightRopeAttachPoint(float partialTick) {
-        return RopeEndpointCalculator.getOxRightPoint(this, partialTick);
+        return calculateAttachPoint(this, OX_RIGHT_X, OX_Y, OX_Z, partialTick);
     }
 
-    @Override
-    public UUID getRopeUUID() {
-        return this.getUUID();
-    }
+    private static Vec3 calculateAttachPoint(Entity entity, float localX, float localY, float localZ, float partialTick) {
+        double x = entity.xOld + (entity.getX() - entity.xOld) * partialTick;
+        double y = entity.yOld + (entity.getY() - entity.yOld) * partialTick;
+        double z = entity.zOld + (entity.getZ() - entity.zOld) * partialTick;
+        float yaw = entity.getViewYRot(partialTick);
+        float yawRad = (float) Math.toRadians(yaw);
 
-    @Override
-    public Level getRopeLevel() {
-        return this.level();
-    }
+        // 模型 root rotation = 180 度补偿
+        float rotatedX = -localX;
+        float rotatedZ = -localZ;
 
-    @Override
-    public boolean isRopeAttachableAlive() {
-        return this.isAlive();
-    }
-
-    @Override
-    public float getRopeYaw(float partialTick) {
-        float prevYaw = this.yRotO;
-        float currYaw = this.getYRot();
-        float delta = currYaw - prevYaw;
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
-        return prevYaw + delta * partialTick;
+        double worldX = x + (rotatedX * Math.cos(yawRad) - rotatedZ * Math.sin(yawRad));
+        double worldZ = z + (rotatedX * Math.sin(yawRad) + rotatedZ * Math.cos(yawRad));
+        return new Vec3(worldX, y + localY, worldZ);
     }
 
     // ==================== 内部类：条件跟随 AI ====================

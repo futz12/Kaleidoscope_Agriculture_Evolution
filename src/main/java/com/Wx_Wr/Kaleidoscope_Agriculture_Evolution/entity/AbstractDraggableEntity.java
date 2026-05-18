@@ -1,8 +1,6 @@
 package com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.entity;
 
 import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.Kaleidoscope_Agriculture_Evolution;
-import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.rope.api.RopeAttachable;
-import com.Wx_Wr.Kaleidoscope_Agriculture_Evolution.rope.core.RopeManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
@@ -40,10 +38,11 @@ import java.util.UUID;
  * 采用惯性移动模型 + 平滑转向（由移动方向决定朝向）
  * 无碰撞箱，强制贴地
  *
- * 绳子管理：当与牛绑定/解绑时自动创建/销毁绳子
- * 实现了 RopeAttachable 接口，可直接用于绳子系统
+ * 抽象牵引实体 - 可被牛牵引的设备基类
+ * 采用惯性移动模型 + 平滑转向（由移动方向决定朝向）
+ * 无碰撞箱，强制贴地
  */
-public abstract class AbstractDraggableEntity extends Entity implements GeoAnimatable, RopeAttachable {
+public abstract class AbstractDraggableEntity extends Entity implements GeoAnimatable {
 
     // ========== 数据同步键 ==========
     protected static final EntityDataAccessor<Optional<UUID>> OX_UUID =
@@ -125,29 +124,17 @@ public abstract class AbstractDraggableEntity extends Entity implements GeoAnima
     // ========== 绳子管理 ==========
 
     /**
-     * 当被绑定到牛时调用（创建绳子）
+     * 当被绑定到牛时调用
      */
     protected void onAttached() {
-        if (!level().isClientSide && ox != null && !ropesCreated) {
-            RopeManager.getInstance().createLink(ox, this, true);
-            RopeManager.getInstance().createLink(ox, this, false);
-            ropesCreated = true;
-            Kaleidoscope_Agriculture_Evolution.LOGGER.debug("Ropes created for {} attached to ox {}",
-                    this.getUUID().toString().substring(0, 8),
-                    ox.getUUID().toString().substring(0, 8));
-        }
+        ropesCreated = true;
     }
 
     /**
-     * 当与牛解绑时调用（销毁绳子）
+     * 当与牛解绑时调用
      */
     protected void onDetached() {
-        if (!level().isClientSide && ropesCreated) {
-            RopeManager.getInstance().destroyAllLinks(this);
-            ropesCreated = false;
-            Kaleidoscope_Agriculture_Evolution.LOGGER.debug("Ropes destroyed for {}",
-                    this.getUUID().toString().substring(0, 8));
-        }
+        ropesCreated = false;
     }
 
     // ========== 牵引绑定方法 ==========
@@ -246,15 +233,11 @@ public abstract class AbstractDraggableEntity extends Entity implements GeoAnima
             this.setDeltaMovement(this.getDeltaMovement().normalize().scale(maxSpeed));
         }
 
-        // 朝向：背对牛的方向
-        double dx = ox.getX() - this.getX();
-        double dz = ox.getZ() - this.getZ();
-        if (Math.abs(dx) > 0.01 || Math.abs(dz) > 0.01) {
-            float targetYaw = (float) (Math.toDegrees(Math.atan2(dx, dz)) + 180f);
-            float deltaYaw = Mth.wrapDegrees(targetYaw - this.getYRot());
-            deltaYaw = Mth.clamp(deltaYaw, -getTurnSpeed(), getTurnSpeed());
-            this.setYRot(this.getYRot() + deltaYaw);
-        }
+        // 朝向：与牛保持一致
+        float targetYaw = ox.getYRot();
+        float deltaYaw = Mth.wrapDegrees(targetYaw - this.getYRot());
+        deltaYaw = Mth.clamp(deltaYaw, -getTurnSpeed(), getTurnSpeed());
+        this.setYRot(this.getYRot() + deltaYaw);
 
         if (isWorking && this.getDeltaMovement().horizontalDistance() > getMinWorkSpeed()) {
             onDraggerMove();
@@ -410,16 +393,14 @@ public abstract class AbstractDraggableEntity extends Entity implements GeoAnima
         }
     }
 
-    // ==================== RopeAttachable 接口实现 ====================
+    // ==================== 绳子连接点 ====================
 
-    @Override
     public Vec3 getLeftRopeAttachPoint(float partialTick) {
         Vec3 offset = getRopeAttachmentOffset();
         double sideOffset = getLeftRopeSideOffset();
         return getInterpolatedPosition(partialTick).add(sideOffset, offset.y, 0);
     }
 
-    @Override
     public Vec3 getRightRopeAttachPoint(float partialTick) {
         Vec3 offset = getRopeAttachmentOffset();
         double sideOffset = getRightRopeSideOffset();
@@ -431,31 +412,6 @@ public abstract class AbstractDraggableEntity extends Entity implements GeoAnima
         double y = this.yOld + (this.getY() - this.yOld) * partialTick;
         double z = this.zOld + (this.getZ() - this.zOld) * partialTick;
         return new Vec3(x, y, z);
-    }
-
-    @Override
-    public UUID getRopeUUID() {
-        return this.getUUID();
-    }
-
-    @Override
-    public Level getRopeLevel() {
-        return this.level();
-    }
-
-    @Override
-    public boolean isRopeAttachableAlive() {
-        return this.isAlive();
-    }
-
-    @Override
-    public float getRopeYaw(float partialTick) {
-        float prevYaw = this.yRotO;
-        float currYaw = this.getYRot();
-        float delta = currYaw - prevYaw;
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
-        return prevYaw + delta * partialTick;
     }
 
     // ==================== GeoAnimatable 接口实现 ====================
